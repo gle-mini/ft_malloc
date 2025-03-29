@@ -1,0 +1,8 @@
+output.txt
+test_free
+test_malloc
+objs/*
+xml-prompt
+prompt
+libft_malloc_*
+copy_content.fish
