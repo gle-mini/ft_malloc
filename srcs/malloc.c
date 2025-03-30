@@ -5,9 +5,12 @@
 #include <string.h>
 
 
-t_zone *g_tiny_zones  = NULL;
-t_zone *g_small_zones = NULL;
-t_zone *g_large_zones = NULL;
+// t_zone *g_tiny_zones  = NULL;
+// t_zone *g_small_zones = NULL;
+// t_zone *g_large_zones = NULL;
+
+t_zone *g_zones = NULL;
+pthread_mutex_t g_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 //=============================================================================
 // Helper Functions
@@ -34,17 +37,18 @@ static t_zone *create_zone(t_zone_type type, size_t zone_size)
 }
 
 // Add a zone to a global list.
-static void add_zone(t_zone **zone_list, t_zone *zone)
+static void add_zone(t_zone *zone)
 {
-    zone->next = *zone_list;
-    *zone_list = zone;
+    zone->next = g_zones;
+    g_zones = zone;
 }
 
 // Remove a zone from a global list.
-void remove_zone(t_zone **zone_list, t_zone *zone)
+void remove_zone(t_zone *zone)
 {
+    // pthread_mutex_lock(&g_mutex);
     t_zone *prev = NULL;
-    t_zone *curr = *zone_list;
+    t_zone *curr = g_zones;
     while (curr)
     {
         if (curr == zone)
@@ -52,14 +56,14 @@ void remove_zone(t_zone **zone_list, t_zone *zone)
             if (prev)
                 prev->next = curr->next;
             else
-                *zone_list = curr->next;
+                g_zones = curr->next;
             break;
         }
         prev = curr;
         curr = curr->next;
     }
+    // pthread_mutex_unlock(&g_mutex);
 }
-
 // Find a free block in the given zone that fits at least 'size' bytes.
 static t_block *find_free_block_in_zone(t_zone *zone, size_t size)
 {
@@ -73,20 +77,22 @@ static t_block *find_free_block_in_zone(t_zone *zone, size_t size)
     return NULL;
 }
 
-// Search for a free block in the global list for a given type.
 static t_block *find_free_block(t_zone_type type, size_t size, t_zone **zone_found)
 {
-    t_zone *zone_list = (type == TINY) ? g_tiny_zones : g_small_zones;
-    t_zone *zone = zone_list;
+    t_zone *zone = g_zones;
     t_block *block = NULL;
+
     while (zone)
     {
-        block = find_free_block_in_zone(zone, size);
-        if (block)
+        if (zone->type == type)
         {
-            if (zone_found)
-                *zone_found = zone;
-            return block;
+            block = find_free_block_in_zone(zone, size);
+            if (block)
+            {
+                if (zone_found)
+                    *zone_found = zone;
+                return block;
+            }
         }
         zone = zone->next;
     }
@@ -113,25 +119,7 @@ static void split_block(t_block *block, size_t size)
 // Given a pointer to a block (user data), find its parent zone.
 t_zone *get_zone_for_ptr(void *ptr)
 {
-    t_zone *zone;
-    // Check TINY zones.
-    zone = g_tiny_zones;
-    while (zone)
-    {
-        if ((char *)ptr > (char *)zone && (char *)ptr < ((char *)zone + zone->size))
-            return zone;
-        zone = zone->next;
-    }
-    // Check SMALL zones.
-    zone = g_small_zones;
-    while (zone)
-    {
-        if ((char *)ptr > (char *)zone && (char *)ptr < ((char *)zone + zone->size))
-            return zone;
-        zone = zone->next;
-    }
-    // Check LARGE zones.
-    zone = g_large_zones;
+    t_zone *zone = g_zones;
     while (zone)
     {
         if ((char *)ptr > (char *)zone && (char *)ptr < ((char *)zone + zone->size))
@@ -168,13 +156,16 @@ void *ft_malloc(size_t size)
     t_zone *zone_found = NULL;
     t_block *block = NULL;
     size_t aligned_size;
-    
+
     if (size == 0)
         return NULL;
     
     // Align size to 8 bytes.
     aligned_size = (size + 7) & ~7;
-    
+
+    // Lock the global mutex before accessing g_zones.
+    pthread_mutex_lock(&g_mutex);
+
     if (aligned_size <= TINY_MAX)
     {
         block = find_free_block(TINY, aligned_size, &zone_found);
@@ -182,9 +173,12 @@ void *ft_malloc(size_t size)
         {
             // No suitable block found; create a new TINY zone.
             zone_found = create_zone(TINY, TINY_ZONE_SIZE);
-            if (!zone_found)
+            if (!zone_found) {
+                pthread_mutex_unlock(&g_mutex);
                 return NULL;
-            add_zone(&g_tiny_zones, zone_found);
+            }
+            // add_zone now should not lock internally.
+            add_zone(zone_found);
             block = zone_found->blocks;
         }
     }
@@ -194,9 +188,11 @@ void *ft_malloc(size_t size)
         if (!block)
         {
             zone_found = create_zone(SMALL, SMALL_ZONE_SIZE);
-            if (!zone_found)
+            if (!zone_found) {
+                pthread_mutex_unlock(&g_mutex);
                 return NULL;
-            add_zone(&g_small_zones, zone_found);
+            }
+            add_zone(zone_found);
             block = zone_found->blocks;
         }
     }
@@ -206,8 +202,10 @@ void *ft_malloc(size_t size)
         size_t total_size = BLOCK_SIZE + aligned_size;
         t_zone *zone = mmap(NULL, total_size, PROT_READ | PROT_WRITE,
                             MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-        if (zone == MAP_FAILED)
+        if (zone == MAP_FAILED) {
+            pthread_mutex_unlock(&g_mutex);
             return NULL;
+        }
         zone->type = LARGE;
         zone->size = total_size;
         zone->next = NULL;
@@ -216,13 +214,16 @@ void *ft_malloc(size_t size)
         zone->blocks->free = 0;
         zone->blocks->next = NULL;
         zone->blocks->prev = NULL;
-        add_zone(&g_large_zones, zone);
+        add_zone(zone);
+        pthread_mutex_unlock(&g_mutex);
         return (void *)(zone->blocks + 1);
     }
     
     // At this point, we have a free block from a TINY or SMALL zone.
     split_block(block, aligned_size);
     block->free = 0;
+    
+    pthread_mutex_unlock(&g_mutex);
     return (void *)(block + 1);
 }
 
@@ -262,7 +263,7 @@ void show_alloc_mem(void)
     size_t total = 0;
     
     // Display TINY zones.
-    zone = g_tiny_zones;
+    zone = g_zones;
     printf("TINY :\n");
     while (zone)
     {
@@ -282,7 +283,7 @@ void show_alloc_mem(void)
     }
     
     // Display SMALL zones.
-    zone = g_small_zones;
+    zone = g_zones;
     printf("SMALL :\n");
     while (zone)
     {
@@ -302,7 +303,7 @@ void show_alloc_mem(void)
     }
     
     // Display LARGE zones.
-    zone = g_large_zones;
+    zone = g_zones;
     printf("LARGE :\n");
     while (zone)
     {
