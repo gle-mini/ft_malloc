@@ -16,6 +16,7 @@
 # include <stdlib.h>
 # include <stddef.h>
 # include <sys/types.h>
+#include <pthread.h>
 
 
 //=============================================================================
@@ -50,9 +51,12 @@ typedef struct s_zone {
 // Global Zone Lists
 //=============================================================================
 
-extern t_zone *g_tiny_zones;
-extern t_zone *g_small_zones;
-extern t_zone *g_large_zones;
+// extern t_zone *g_tiny_zones;
+// extern t_zone *g_small_zones;
+// extern t_zone *g_large_zones;
+
+extern pthread_mutex_t g_mutex;
+extern t_zone *g_zones;
 
 /*
  * Allocates "size" bytes of memory and returns a pointer to the allocated memory.
@@ -80,7 +84,7 @@ void	show_alloc_mem(void);
 
 t_zone *get_zone_for_ptr(void *ptr);
 void coalesce(t_zone *zone);
-void remove_zone(t_zone **zone_list, t_zone *zone);
+void remove_zone(t_zone *zone);
 
 
 
