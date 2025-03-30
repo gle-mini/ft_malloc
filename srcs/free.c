@@ -2,6 +2,11 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <pthread.h>
+
+// Assume these globals are declared in your header or elsewhere.
+extern t_zone *g_zones;
+extern pthread_mutex_t g_mutex;
 
 /*
  * ft_free:
@@ -21,13 +26,19 @@ void ft_free(void *ptr)
     if (!ptr)
         return;
 
-    // Retrieve the block header; user pointer is located right after the header.
+    // Retrieve the block header; the user pointer is located right after the header.
     block = (t_block *)ptr - 1;
 
-    // Find the zone that contains this block.
+    // Lock the global mutex to protect the global zones list.
+    pthread_mutex_lock(&g_mutex);
+
+    // Find the zone that contains this block from the unified global list.
     zone = get_zone_for_ptr((void *)block);
     if (!zone)
+    {
+        pthread_mutex_unlock(&g_mutex);
         return;
+    }
 
     // Mark the block as free.
     block->free = 1;
@@ -35,7 +46,7 @@ void ft_free(void *ptr)
     // Attempt to merge (coalesce) adjacent free blocks.
     coalesce(zone);
 
-    // If the allocation belongs to a TINY or SMALL zone, check if every block is free.
+    // For TINY and SMALL zones, check if every block is free.
     if (zone->type == TINY || zone->type == SMALL)
     {
         t_block *b = zone->blocks;
@@ -52,18 +63,16 @@ void ft_free(void *ptr)
         // If the entire zone is free, remove it from the global list and unmap the zone.
         if (all_free)
         {
-            if (zone->type == TINY)
-                remove_zone(&g_tiny_zones, zone);
-            else  // SMALL
-                remove_zone(&g_small_zones, zone);
-
+            remove_zone(zone);  // remove_zone() now uses the single global list (g_zones).
             munmap(zone, zone->size);
         }
     }
     // For LARGE allocations, unmap the zone immediately.
     else if (zone->type == LARGE)
     {
-        remove_zone(&g_large_zones, zone);
+        remove_zone(zone);
         munmap(zone, zone->size);
     }
+
+    pthread_mutex_unlock(&g_mutex);
 }
