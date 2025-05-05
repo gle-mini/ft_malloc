@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include "libft_malloc.h"
 
-// Prototype our allocator API (provided by allocator.h)
 void    *ft_malloc(size_t size);
 void    ft_free(void *ptr);
 void    *ft_realloc(void *ptr, size_t size);
@@ -18,7 +17,6 @@ void test_malloc_zero(void)
 {
     printf("Running test_malloc_zero...\n");
     void *ptr = ft_malloc(0);
-    // Our implementation returns NULL when size == 0.
     assert(ptr == NULL);
     printf("test_malloc_zero passed.\n");
 }
@@ -29,13 +27,11 @@ void test_malloc_zero(void)
 void test_malloc_tiny(void)
 {
     printf("Running test_malloc_tiny...\n");
-    size_t size = 32; // well below TINY_MAX (64 bytes)
+    size_t size = 32;
     char *ptr = ft_malloc(size);
     assert(ptr != NULL);
-    // Check that the returned pointer is 8-byte aligned.
     assert(((uintptr_t)ptr & 7) == 0);
     
-    // Write to the allocated memory and check that it holds.
     memset(ptr, 0xAB, size);
     for (size_t i = 0; i < size; i++)
         assert(ptr[i] == (char)0xAB);
@@ -50,7 +46,7 @@ void test_malloc_tiny(void)
 void test_malloc_tiny_boundary(void)
 {
     printf("Running test_malloc_tiny_boundary...\n");
-    size_t size = 64; // TINY_MAX as defined in our allocator
+    size_t size = 64;
     char *ptr = ft_malloc(size);
     assert(ptr != NULL);
     assert(((uintptr_t)ptr & 7) == 0);
@@ -69,7 +65,7 @@ void test_malloc_tiny_boundary(void)
 void test_malloc_small(void)
 {
     printf("Running test_malloc_small...\n");
-    size_t size = 128; // within SMALL range (<=1024)
+    size_t size = 128;
     char *ptr = ft_malloc(size);
     assert(ptr != NULL);
     assert(((uintptr_t)ptr & 7) == 0);
@@ -88,7 +84,7 @@ void test_malloc_small(void)
 void test_malloc_large(void)
 {
     printf("Running test_malloc_large...\n");
-    size_t size = 2048; // greater than SMALL_MAX (1024 bytes)
+    size_t size = 2048;
     char *ptr = ft_malloc(size);
     assert(ptr != NULL);
     assert(((uintptr_t)ptr & 7) == 0);
@@ -99,6 +95,22 @@ void test_malloc_large(void)
     
     ft_free(ptr);
     printf("test_malloc_large passed.\n");
+}
+
+void test_malloc_very_large(void)
+{
+    printf("Running test_malloc_very_large...\n");
+    size_t size = 100000;
+    char *ptr = ft_malloc(size);
+    assert(ptr != NULL);
+    assert(((uintptr_t)ptr & 7) == 0);
+
+    memset(ptr, 0x15, size);
+    for (size_t i = 0; i < size; i++)
+        assert(ptr[i] == (char)0x15);
+    
+    ft_free(ptr);
+    printf("test_malloc_very_large passed.\n");
 }
 
 //-----------------------------------------------------------------------------
@@ -114,18 +126,15 @@ void test_malloc_multiple(void)
     for (int i = 0; i < NUM_ALLOCS; i++) {
         ptrs[i] = ft_malloc(sizes[i]);
         assert(ptrs[i] != NULL);
-        // Fill memory with a pattern.
         memset(ptrs[i], (int)(i + 1), sizes[i]);
     }
-    
-    // Check for non-overlap:
+
     for (int i = 0; i < NUM_ALLOCS; i++) {
         char *start_i = (char *)ptrs[i];
         char *end_i = start_i + sizes[i];
         for (int j = i + 1; j < NUM_ALLOCS; j++) {
             char *start_j = (char *)ptrs[j];
             char *end_j = start_j + sizes[j];
-            // Ensure that blocks do not overlap.
             assert(end_i <= start_j || end_j <= start_i);
         }
     }
@@ -146,14 +155,9 @@ void test_realloc_increase(void)
     size_t initial = 32;
     char *ptr = ft_malloc(initial);
     assert(ptr != NULL);
-    
-    // Fill with a known pattern.
     memset(ptr, 'A', initial);
-    
-    // Increase size.
     char *new_ptr = ft_realloc(ptr, 64);
     assert(new_ptr != NULL);
-    // The first 32 bytes should be preserved.
     for (size_t i = 0; i < initial; i++)
         assert(new_ptr[i] == 'A');
     
@@ -173,7 +177,6 @@ void test_realloc_decrease(void)
     
     memset(ptr, 'B', initial);
     
-    // Decrease size.
     char *new_ptr = ft_realloc(ptr, 32);
     assert(new_ptr != NULL);
     for (size_t i = 0; i < 32; i++)
@@ -206,9 +209,12 @@ void test_realloc_zero(void)
 {
     printf("Running test_realloc_zero...\n");
     char *ptr = ft_malloc(128);
+    printf("First malloc :\n");
+    show_alloc_mem();
     assert(ptr != NULL);
+    printf("Realloc :\n");
+    show_alloc_mem();
     char *new_ptr = ft_realloc(ptr, 0);
-    // Our implementation frees the block and returns NULL.
     assert(new_ptr == NULL);
     printf("test_realloc_zero passed.\n");
 }
@@ -219,11 +225,9 @@ void test_realloc_zero(void)
 void test_show_alloc_mem(void)
 {
     printf("Running test_show_alloc_mem...\n");
-    // Allocate several blocks.
     ft_malloc(32);
     ft_malloc(64);
     ft_malloc(2048);
-    // Display the current memory zones.
     printf("Memory state:\n");
     show_alloc_mem();
     printf("test_show_alloc_mem passed.\n");
@@ -239,6 +243,7 @@ int main(void)
     test_malloc_tiny_boundary();
     test_malloc_small();
     test_malloc_large();
+    test_malloc_very_large();
     test_malloc_multiple();
     test_realloc_increase();
     test_realloc_decrease();

@@ -14,7 +14,7 @@ HOST    := $(shell uname -m)
 LIBNAME := libft_malloc_$(HOST).so
 
 # Source files (for the shared library)
-SRCS     := $(addsuffix .c, $(addprefix $(SRC_DIR), malloc free))
+SRCS     := $(addsuffix .c, $(addprefix $(SRC_DIR), ft_malloc ft_free show_alloc_mem))
 OBJS     := $(patsubst $(SRC_DIR)%.c, $(OBJ_DIR)%.o, $(SRCS))
 DEPS     := $(OBJS:.o=.d)
 
@@ -59,20 +59,20 @@ test: test_free test_malloc test_threads
 
 # Valgrind target: run both test executables under Valgrind.
 vg: test_free test_malloc test_threads
-	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose ./test_free
-	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose ./test_malloc
-	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose ./test_threads
+	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./test_free
+	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./test_malloc
+	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./test_threads
 
 # Hellgrind target: run both test executables under Helgrind.
 helgrind: test_free test_malloc test_threads
-	valgrind --tool=helgrind --verbose --log-file=helgrind_test_free.log ./test_free
-	valgrind --tool=helgrind --verbose --log-file=helgrind_test_malloc.log ./test_malloc
-	valgrind --tool=helgrind --verbose --log-file=helgrind_test_threads.log ./test_threads
+	valgrind --tool=helgrind ./test_free
+	valgrind --tool=helgrind ./test_malloc
+	valgrind --tool=helgrind ./test_threads
 
 drd: test_free test_malloc test_threads
-	valgrind --tool=drd --log-file=drd_test_free.log ./test_free
-	valgrind --tool=drd --log-file=drd_test_malloc.log ./test_malloc
-	valgrind --tool=drd --log-file=drd_test_threads.log ./test_threads
+	valgrind --tool=drd ./test_free
+	valgrind --tool=drd ./test_malloc
+	valgrind --tool=drd ./test_threads
 
 
 .PHONY: all clean fclean re vg hellgrind test

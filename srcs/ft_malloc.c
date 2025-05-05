@@ -4,11 +4,6 @@
 #include <stdio.h>
 #include <string.h>
 
-
-// t_zone *g_tiny_zones  = NULL;
-// t_zone *g_small_zones = NULL;
-// t_zone *g_large_zones = NULL;
-
 t_zone *g_zones = NULL;
 pthread_mutex_t g_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -16,7 +11,17 @@ pthread_mutex_t g_mutex = PTHREAD_MUTEX_INITIALIZER;
 // Helper Functions
 //=============================================================================
 
-// Create a new zone using mmap and initialize its first block.
+
+/**
+ * @brief Creates a new memory zone using mmap and initializes its first block.
+ *
+ * This function maps a new memory region of the given size, sets the zone type, and
+ * initializes the first block header covering the remainder of the zone.
+ *
+ * @param type The type of the memory zone (TINY, SMALL, or LARGE).
+ * @param zone_size The total size in bytes for the new zone.
+ * @return Pointer to the created t_zone structure, or NULL if mmap fails.
+ */
 static t_zone *create_zone(t_zone_type type, size_t zone_size)
 {
     t_zone *zone = mmap(NULL, zone_size, PROT_READ | PROT_WRITE,
@@ -26,8 +31,6 @@ static t_zone *create_zone(t_zone_type type, size_t zone_size)
     zone->type = type;
     zone->size = zone_size;
     zone->next = NULL;
-    // The zone header is at the start of the region. Immediately after,
-    // we initialize the first block for allocations.
     zone->blocks = (t_block *)((char *)zone + sizeof(t_zone));
     zone->blocks->size = zone_size - sizeof(t_zone) - BLOCK_SIZE;
     zone->blocks->free = 1;
@@ -36,17 +39,29 @@ static t_zone *create_zone(t_zone_type type, size_t zone_size)
     return zone;
 }
 
-// Add a zone to a global list.
+
+/**
+ * @brief Adds a memory zone to the global zones list.
+ *
+ * This function prepends the provided zone to the global linked list of zones.
+ *
+ * @param zone Pointer to the memory zone to be added.
+ */
 static void add_zone(t_zone *zone)
 {
     zone->next = g_zones;
     g_zones = zone;
 }
 
-// Remove a zone from a global list.
+/**
+ * @brief Removes a memory zone from the global zones list.
+ *
+ * This function searches the global zones list and removes the specified zone.
+ *
+ * @param zone Pointer to the memory zone to be removed.
+ */
 void remove_zone(t_zone *zone)
 {
-    // pthread_mutex_lock(&g_mutex);
     t_zone *prev = NULL;
     t_zone *curr = g_zones;
     while (curr)
@@ -62,9 +77,18 @@ void remove_zone(t_zone *zone)
         prev = curr;
         curr = curr->next;
     }
-    // pthread_mutex_unlock(&g_mutex);
 }
-// Find a free block in the given zone that fits at least 'size' bytes.
+
+/**
+ * @brief Finds a free block within a zone that fits at least 'size' bytes.
+ *
+ * Iterates through the linked list of blocks in a given zone and returns the first
+ * block that is free and has enough size.
+ *
+ * @param zone Pointer to the memory zone to search.
+ * @param size The minimum number of bytes required.
+ * @return Pointer to a suitable free block, or NULL if none is found.
+ */
 static t_block *find_free_block_in_zone(t_zone *zone, size_t size)
 {
     t_block *block = zone->blocks;
@@ -77,6 +101,18 @@ static t_block *find_free_block_in_zone(t_zone *zone, size_t size)
     return NULL;
 }
 
+
+/**
+ * @brief Finds a free block of a given type in the global zones that fits 'size' bytes.
+ *
+ * Searches the global zones list for a zone of the specified type and then finds a free block
+ * within that zone that can accommodate the requested size.
+ *
+ * @param type The type of zone (TINY, SMALL, or LARGE) to search in.
+ * @param size The number of bytes required.
+ * @param zone_found Optional output parameter to return the zone where the block was found.
+ * @return Pointer to a free block, or NULL if no suitable block exists.
+ */
 static t_block *find_free_block(t_zone_type type, size_t size, t_zone **zone_found)
 {
     t_zone *zone = g_zones;
@@ -99,10 +135,19 @@ static t_block *find_free_block(t_zone_type type, size_t size, t_zone **zone_fou
     return NULL;
 }
 
-// Split a block if it is considerably larger than requested.
+/**
+ * @brief Splits a free block if it is considerably larger than requested into an allocated block and a residual free block.
+ *
+ * If the free block has significantly more space than requested, it is split into:
+ * - An allocated block of exactly 'size' bytes.
+ * - A new free block that contains the remaining space.
+ *
+ * @param block Pointer to the free block to be split.
+ * @param size The requested allocation size.
+ */
 static void split_block(t_block *block, size_t size)
 {
-    if (block->size >= size + BLOCK_SIZE + 8) // leave minimal room for a new block
+    if (block->size >= size + BLOCK_SIZE + 8)
     {
         t_block *new_block = (t_block *)((char *)block + BLOCK_SIZE + size);
         new_block->size = block->size - size - BLOCK_SIZE;
@@ -116,7 +161,14 @@ static void split_block(t_block *block, size_t size)
     }
 }
 
-// Given a pointer to a block (user data), find its parent zone.
+/**
+ * @brief Determines the memory zone that contains the given pointer.
+ *
+ * Iterates through the global zones list to find which zone holds the address specified by ptr.
+ *
+ * @param ptr Pointer assumed to be part of a memory block header.
+ * @return Pointer to the corresponding zone, or NULL if not found.
+ */
 t_zone *get_zone_for_ptr(void *ptr)
 {
     t_zone *zone = g_zones;
@@ -129,7 +181,14 @@ t_zone *get_zone_for_ptr(void *ptr)
     return NULL;
 }
 
-// Coalesce adjacent free blocks within a zone.
+/**
+ * @brief Coalesces adjacent free blocks within the specified zone.
+ *
+ * Merges contiguous free blocks into a single larger free block in order to
+ * reduce fragmentation.
+ *
+ * @param zone Pointer to the memory zone where coalescing is to be performed.
+ */
 void coalesce(t_zone *zone)
 {
     t_block *block = zone->blocks;
@@ -151,6 +210,16 @@ void coalesce(t_zone *zone)
 // Allocator API Functions
 //=============================================================================
 
+/**
+ * @brief Allocates "size" bytes of memory.
+ *
+ * This allocator first aligns the requested size to 8 bytes. Depending on the size,
+ * it allocates from a TINY, SMALL, or LARGE memory zone. If no suitable free block is available,
+ * it creates a new zone via mmap (except for LARGE allocations, which get their own).
+ *
+ * @param size Number of bytes to allocate.
+ * @return Pointer to the allocated memory, or NULL if allocation fails or size is 0.
+ */
 void *ft_malloc(size_t size)
 {
     t_zone *zone_found = NULL;
@@ -163,7 +232,6 @@ void *ft_malloc(size_t size)
     // Align size to 8 bytes.
     aligned_size = (size + 7) & ~7;
 
-    // Lock the global mutex before accessing g_zones.
     pthread_mutex_lock(&g_mutex);
 
     if (aligned_size <= TINY_MAX)
@@ -171,13 +239,11 @@ void *ft_malloc(size_t size)
         block = find_free_block(TINY, aligned_size, &zone_found);
         if (!block)
         {
-            // No suitable block found; create a new TINY zone.
             zone_found = create_zone(TINY, TINY_ZONE_SIZE);
             if (!zone_found) {
                 pthread_mutex_unlock(&g_mutex);
                 return NULL;
             }
-            // add_zone now should not lock internally.
             add_zone(zone_found);
             block = zone_found->blocks;
         }
@@ -198,7 +264,6 @@ void *ft_malloc(size_t size)
     }
     else
     {
-        // LARGE allocation: each gets its own mmap.
         size_t total_size = BLOCK_SIZE + aligned_size;
         t_zone *zone = mmap(NULL, total_size, PROT_READ | PROT_WRITE,
                             MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -218,8 +283,6 @@ void *ft_malloc(size_t size)
         pthread_mutex_unlock(&g_mutex);
         return (void *)(zone->blocks + 1);
     }
-    
-    // At this point, we have a free block from a TINY or SMALL zone.
     split_block(block, aligned_size);
     block->free = 0;
     
@@ -227,13 +290,23 @@ void *ft_malloc(size_t size)
     return (void *)(block + 1);
 }
 
+/**
+ * @brief Reallocates the given memory block to a new size.
+ *
+ * If the new size is less than or equal to the current block's size, the block is
+ * split (if possible). Otherwise, a new block is allocated, the data copied, and the old block freed.
+ *
+ * @param ptr Pointer to the existing memory block (or NULL, in which case ft_malloc is called).
+ * @param size The new size in bytes for the reallocation.
+ * @return Pointer to the reallocated memory block, or NULL if allocation fails.
+ */
 void *ft_realloc(void *ptr, size_t size)
 {
     if (!ptr)
-        return ft_malloc(size);  // Use our custom ft_malloc
+        return ft_malloc(size);
     if (size == 0)
     {
-        ft_free(ptr);            // Use our custom ft_free
+        ft_free(ptr);
         return NULL;
     }
     
@@ -246,76 +319,11 @@ void *ft_realloc(void *ptr, size_t size)
         return ptr;
     }
     
-    // Otherwise, allocate a new block, copy the data, and free the old block.
-    void *new_ptr = ft_malloc(size);  // Use our custom ft_malloc
+    void *new_ptr = ft_malloc(size);
     if (!new_ptr)
         return NULL;
     size_t copy_size = (block->size < aligned_size) ? block->size : aligned_size;
     memcpy(new_ptr, ptr, copy_size);
-    ft_free(ptr);  // Use our custom ft_free
+    ft_free(ptr);
     return new_ptr;
-}
-
-void show_alloc_mem(void)
-{
-    t_zone *zone;
-    t_block *block;
-    size_t total = 0;
-    
-    // Display TINY zones.
-    zone = g_zones;
-    printf("TINY :\n");
-    while (zone)
-    {
-        printf("%p - %p : Zone size %zu\n", zone, (char *)zone + zone->size, zone->size);
-        block = zone->blocks;
-        while (block)
-        {
-            if (!block->free)
-            {
-                printf("%p - %p : %zu bytes\n", (void *)(block + 1),
-                       (void *)((char *)(block + 1) + block->size), block->size);
-                total += block->size;
-            }
-            block = block->next;
-        }
-        zone = zone->next;
-    }
-    
-    // Display SMALL zones.
-    zone = g_zones;
-    printf("SMALL :\n");
-    while (zone)
-    {
-        printf("%p - %p : Zone size %zu\n", zone, (char *)zone + zone->size, zone->size);
-        block = zone->blocks;
-        while (block)
-        {
-            if (!block->free)
-            {
-                printf("%p - %p : %zu bytes\n", (void *)(block + 1),
-                       (void *)((char *)(block + 1) + block->size), block->size);
-                total += block->size;
-            }
-            block = block->next;
-        }
-        zone = zone->next;
-    }
-    
-    // Display LARGE zones.
-    zone = g_zones;
-    printf("LARGE :\n");
-    while (zone)
-    {
-        printf("%p - %p : Zone size %zu\n", zone, (char *)zone + zone->size, zone->size);
-        block = zone->blocks;
-        if (!block->free)
-        {
-            printf("%p - %p : %zu bytes\n", (void *)(block + 1),
-                   (void *)((char *)(block + 1) + block->size), block->size);
-            total += block->size;
-        }
-        zone = zone->next;
-    }
-    printf("Total : %zu bytes\n", total);
 }

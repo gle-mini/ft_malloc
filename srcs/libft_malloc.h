@@ -5,11 +5,9 @@
 #define TINY_MAX        64
 #define SMALL_MAX       1024
 
-// Zone sizes are multiples of the system page size.
 #define TINY_ZONE_MULTIPLIER   16
 #define SMALL_ZONE_MULTIPLIER  128
 
-// These macros compute the zone sizes.
 #define TINY_ZONE_SIZE   (sysconf(_SC_PAGESIZE) * TINY_ZONE_MULTIPLIER)
 #define SMALL_ZONE_SIZE  (sysconf(_SC_PAGESIZE) * SMALL_ZONE_MULTIPLIER)
 
@@ -23,16 +21,24 @@
 // Data Structures
 //=============================================================================
 
+/**
+ * @brief Enumeration of memory zone types.
+ */
 typedef enum e_zone_type {
     TINY,
     SMALL,
     LARGE
 } t_zone_type;
 
-// Block header structure: each allocated block has a header.
+/**
+ * @brief Header structure for a memory block.
+ *
+ * Each allocated block has a header storing the size, free flag,
+ * and pointers to the next and previous blocks.
+ */
 typedef struct s_block {
-    size_t          size;   // Size of the payload (user data)
-    int             free;   // 1 if free, 0 if allocated
+    size_t          size;
+    int             free;
     struct s_block  *next;
     struct s_block  *prev;
 } t_block;
@@ -40,20 +46,21 @@ typedef struct s_block {
 #define BLOCK_SIZE (sizeof(t_block))
 
 // Zone structure: represents a memory zone allocated with mmap.
+/**
+ * @brief Structure representing a memory zone allocated via mmap.
+ *
+ * A zone contains a header and one or more blocks.
+ */
 typedef struct s_zone {
     t_zone_type     type;
-    size_t          size;   // Total size of the zone (including header)
+    size_t          size;
     struct s_zone   *next;
-    t_block         *blocks; // Pointer to the first block in the zone
+    t_block         *blocks;
 } t_zone;
 
 //=============================================================================
 // Global Zone Lists
 //=============================================================================
-
-// extern t_zone *g_tiny_zones;
-// extern t_zone *g_small_zones;
-// extern t_zone *g_large_zones;
 
 extern pthread_mutex_t g_mutex;
 extern t_zone *g_zones;

@@ -3,7 +3,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdint.h>
-#include "libft_malloc.h"  // This header declares ft_malloc, ft_free, ft_realloc, show_alloc_mem
+#include "libft_malloc.h"
 
 void    *ft_malloc(size_t size);
 void    ft_free(void *ptr);
@@ -30,7 +30,6 @@ void test_free_single_block(void)
     assert(ptr != NULL);
     memset(ptr, 'X', 50);
     ft_free(ptr);
-    // Allocate again to see if freed memory can be reused.
     char *ptr2 = ft_malloc(50);
     assert(ptr2 != NULL);
     memset(ptr2, 'Y', 50);
@@ -46,24 +45,19 @@ void test_free_single_block(void)
 void test_coalesce_adjacent_blocks(void)
 {
     printf("Running test_coalesce_adjacent_blocks...\n");
-    // Allocate three blocks consecutively.
     char *ptr1 = ft_malloc(30);
     char *ptr2 = ft_malloc(30);
     char *ptr3 = ft_malloc(30);
     assert(ptr1 && ptr2 && ptr3);
     
-    // Fill with distinct patterns.
     memset(ptr1, 'A', 30);
     memset(ptr2, 'B', 30);
     memset(ptr3, 'C', 30);
     
-    // Free first and third blocks.
     ft_free(ptr1);
     ft_free(ptr3);
-    // Free the middle block; this should cause the free blocks to merge (coalesce).
     ft_free(ptr2);
     
-    // Now allocate a block larger than a single block (but within the coalesced size).
     char *ptr_big = ft_malloc(80);
     assert(ptr_big != NULL);
     memset(ptr_big, 'D', 80);
@@ -83,7 +77,6 @@ void test_double_free(void)
     assert(ptr != NULL);
     memset(ptr, 'Z', 50);
     ft_free(ptr);
-    // Call ft_free a second time on the same pointer.
     ft_free(ptr);
     printf("test_double_free passed.\n");
 }
@@ -99,19 +92,16 @@ void test_free_many_blocks(void)
     #define NUM_BLOCKS 150
     char *blocks[NUM_BLOCKS];
     
-    // Allocate many small blocks (e.g., 32 bytes each).
     for (int i = 0; i < NUM_BLOCKS; i++) {
         blocks[i] = ft_malloc(32);
         assert(blocks[i] != NULL);
         memset(blocks[i], 'M', 32);
     }
     
-    // Free all blocks sequentially.
     for (int i = 0; i < NUM_BLOCKS; i++) {
         ft_free(blocks[i]);
     }
     
-    // Optionally, display the memory state. Zones that are completely free should be unmapped.
     printf("Memory state after freeing many blocks:\n");
     show_alloc_mem();
     
@@ -128,7 +118,6 @@ void test_free_stress(void)
     #define ITERATIONS 1000
     void *ptr;
     for (int i = 0; i < ITERATIONS; i++) {
-        // Allocate a random size between 1 and 256 bytes.
         size_t size = (rand() % 256) + 1;
         ptr = ft_malloc(size);
         assert(ptr != NULL);
