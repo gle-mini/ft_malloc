@@ -5,21 +5,10 @@
 #include <stdio.h>
 #include "libft_malloc.h"
 
-void    *ft_malloc(size_t size);
-void    ft_free(void *ptr);
-void    *ft_realloc(void *ptr, size_t size);
+void    *malloc(size_t size);
+void    free(void *ptr);
+void    *realloc(void *ptr, size_t size);
 void    show_alloc_mem(void);
-
-//-----------------------------------------------------------------------------
-// Test 1: Malloc Zero
-//-----------------------------------------------------------------------------
-void test_malloc_zero(void)
-{
-    printf("Running test_malloc_zero...\n");
-    void *ptr = ft_malloc(0);
-    assert(ptr == NULL);
-    printf("test_malloc_zero passed.\n");
-}
 
 //-----------------------------------------------------------------------------
 // Test 2: Tiny Allocation (< TINY_MAX)
@@ -28,7 +17,7 @@ void test_malloc_tiny(void)
 {
     printf("Running test_malloc_tiny...\n");
     size_t size = 32;
-    char *ptr = ft_malloc(size);
+    char *ptr = malloc(size);
     assert(ptr != NULL);
     assert(((uintptr_t)ptr & 7) == 0);
     
@@ -36,7 +25,7 @@ void test_malloc_tiny(void)
     for (size_t i = 0; i < size; i++)
         assert(ptr[i] == (char)0xAB);
     
-    ft_free(ptr);
+    free(ptr);
     printf("test_malloc_tiny passed.\n");
 }
 
@@ -47,7 +36,7 @@ void test_malloc_tiny_boundary(void)
 {
     printf("Running test_malloc_tiny_boundary...\n");
     size_t size = 64;
-    char *ptr = ft_malloc(size);
+    char *ptr = malloc(size);
     assert(ptr != NULL);
     assert(((uintptr_t)ptr & 7) == 0);
     
@@ -55,7 +44,7 @@ void test_malloc_tiny_boundary(void)
     for (size_t i = 0; i < size; i++)
         assert(ptr[i] == (char)0xCD);
     
-    ft_free(ptr);
+    free(ptr);
     printf("test_malloc_tiny_boundary passed.\n");
 }
 
@@ -66,7 +55,7 @@ void test_malloc_small(void)
 {
     printf("Running test_malloc_small...\n");
     size_t size = 128;
-    char *ptr = ft_malloc(size);
+    char *ptr = malloc(size);
     assert(ptr != NULL);
     assert(((uintptr_t)ptr & 7) == 0);
     
@@ -74,7 +63,7 @@ void test_malloc_small(void)
     for (size_t i = 0; i < size; i++)
         assert(ptr[i] == (char)0xEF);
     
-    ft_free(ptr);
+    free(ptr);
     printf("test_malloc_small passed.\n");
 }
 
@@ -85,7 +74,7 @@ void test_malloc_large(void)
 {
     printf("Running test_malloc_large...\n");
     size_t size = 2048;
-    char *ptr = ft_malloc(size);
+    char *ptr = malloc(size);
     assert(ptr != NULL);
     assert(((uintptr_t)ptr & 7) == 0);
     
@@ -93,7 +82,7 @@ void test_malloc_large(void)
     for (size_t i = 0; i < size; i++)
         assert(ptr[i] == (char)0x12);
     
-    ft_free(ptr);
+    free(ptr);
     printf("test_malloc_large passed.\n");
 }
 
@@ -101,7 +90,7 @@ void test_malloc_very_large(void)
 {
     printf("Running test_malloc_very_large...\n");
     size_t size = 100000;
-    char *ptr = ft_malloc(size);
+    char *ptr = malloc(size);
     assert(ptr != NULL);
     assert(((uintptr_t)ptr & 7) == 0);
 
@@ -109,7 +98,7 @@ void test_malloc_very_large(void)
     for (size_t i = 0; i < size; i++)
         assert(ptr[i] == (char)0x15);
     
-    ft_free(ptr);
+    free(ptr);
     printf("test_malloc_very_large passed.\n");
 }
 
@@ -124,7 +113,7 @@ void test_malloc_multiple(void)
     void *ptrs[NUM_ALLOCS];
     
     for (int i = 0; i < NUM_ALLOCS; i++) {
-        ptrs[i] = ft_malloc(sizes[i]);
+        ptrs[i] = malloc(sizes[i]);
         assert(ptrs[i] != NULL);
         memset(ptrs[i], (int)(i + 1), sizes[i]);
     }
@@ -140,7 +129,7 @@ void test_malloc_multiple(void)
     }
     
     for (int i = 0; i < NUM_ALLOCS; i++) {
-        ft_free(ptrs[i]);
+        free(ptrs[i]);
     }
     printf("test_malloc_multiple passed.\n");
     #undef NUM_ALLOCS
@@ -153,15 +142,15 @@ void test_realloc_increase(void)
 {
     printf("Running test_realloc_increase...\n");
     size_t initial = 32;
-    char *ptr = ft_malloc(initial);
+    char *ptr = malloc(initial);
     assert(ptr != NULL);
     memset(ptr, 'A', initial);
-    char *new_ptr = ft_realloc(ptr, 64);
+    char *new_ptr = realloc(ptr, 64);
     assert(new_ptr != NULL);
     for (size_t i = 0; i < initial; i++)
         assert(new_ptr[i] == 'A');
     
-    ft_free(new_ptr);
+    free(new_ptr);
     printf("test_realloc_increase passed.\n");
 }
 
@@ -172,17 +161,17 @@ void test_realloc_decrease(void)
 {
     printf("Running test_realloc_decrease...\n");
     size_t initial = 64;
-    char *ptr = ft_malloc(initial);
+    char *ptr = malloc(initial);
     assert(ptr != NULL);
     
     memset(ptr, 'B', initial);
     
-    char *new_ptr = ft_realloc(ptr, 32);
+    char *new_ptr = realloc(ptr, 32);
     assert(new_ptr != NULL);
     for (size_t i = 0; i < 32; i++)
         assert(new_ptr[i] == 'B');
     
-    ft_free(new_ptr);
+    free(new_ptr);
     printf("test_realloc_decrease passed.\n");
 }
 
@@ -192,13 +181,13 @@ void test_realloc_decrease(void)
 void test_realloc_null(void)
 {
     printf("Running test_realloc_null...\n");
-    char *ptr = ft_realloc(NULL, 128);
+    char *ptr = realloc(NULL, 128);
     assert(ptr != NULL);
     memset(ptr, 'C', 128);
     for (size_t i = 0; i < 128; i++)
         assert(ptr[i] == 'C');
     
-    ft_free(ptr);
+    free(ptr);
     printf("test_realloc_null passed.\n");
 }
 
@@ -208,13 +197,13 @@ void test_realloc_null(void)
 void test_realloc_zero(void)
 {
     printf("Running test_realloc_zero...\n");
-    char *ptr = ft_malloc(128);
+    char *ptr = malloc(128);
     printf("First malloc :\n");
     show_alloc_mem();
     assert(ptr != NULL);
     printf("Realloc :\n");
     show_alloc_mem();
-    char *new_ptr = ft_realloc(ptr, 0);
+    char *new_ptr = realloc(ptr, 0);
     assert(new_ptr == NULL);
     printf("test_realloc_zero passed.\n");
 }
@@ -225,20 +214,31 @@ void test_realloc_zero(void)
 void test_show_alloc_mem(void)
 {
     printf("Running test_show_alloc_mem...\n");
-    ft_malloc(32);
-    ft_malloc(64);
-    ft_malloc(2048);
+    malloc(32);
+    malloc(64);
+    malloc(2048);
     printf("Memory state:\n");
     show_alloc_mem();
     printf("test_show_alloc_mem passed.\n");
 }
+
+void test_show_alloc_mem_hex(void)
+{
+    printf("Running test_show_alloc_mem_hex...\n");
+    malloc(32);
+    malloc(64);
+    malloc(2048);
+    printf("Memory state:\n");
+    show_alloc_mem_hex();
+    printf("test_show_alloc_mem_hex passed.\n");
+}
+
 
 //-----------------------------------------------------------------------------
 // Main: Run All Tests
 //-----------------------------------------------------------------------------
 int main(void)
 {
-    test_malloc_zero();
     test_malloc_tiny();
     test_malloc_tiny_boundary();
     test_malloc_small();

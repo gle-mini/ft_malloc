@@ -1,5 +1,5 @@
 #ifndef LIBFT_MALLOC_H
-# define LIBTF_MALLOC_H
+# define LIBFT_MALLOC_H
 
 
 #define TINY_MAX        64
@@ -14,7 +14,9 @@
 # include <stdlib.h>
 # include <stddef.h>
 # include <sys/types.h>
-#include <pthread.h>
+# include <pthread.h>
+# include <valgrind/memcheck.h>
+
 
 
 //=============================================================================
@@ -68,25 +70,27 @@ extern t_zone *g_zones;
 /*
  * Allocates "size" bytes of memory and returns a pointer to the allocated memory.
  */
-void	*ft_malloc(size_t size);
+void	*malloc(size_t size);
 
 /*
  * Deallocates the memory allocation pointed to by "ptr".
  * If "ptr" is a NULL pointer, no operation is performed.
  */
-void	ft_free(void *ptr);
+void	free(void *ptr);
 
 /*
  * Changes the size of the memory allocation pointed to by "ptr" to "size".
  * If there is not enough room to enlarge the allocation, a new allocation is created,
  * the old data is copied, and the old allocation is freed.
  */
-void	*ft_realloc(void *ptr, size_t size);
+void	*realloc(void *ptr, size_t size);
 
 /*
  * Displays the current state of the allocated memory zones.
  */
 void	show_alloc_mem(void);
+
+void    show_alloc_mem_hex(void);
 
 
 t_zone *get_zone_for_ptr(void *ptr);

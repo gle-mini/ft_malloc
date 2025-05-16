@@ -220,14 +220,14 @@ void coalesce(t_zone *zone)
  * @param size Number of bytes to allocate.
  * @return Pointer to the allocated memory, or NULL if allocation fails or size is 0.
  */
-void *ft_malloc(size_t size)
+void *malloc(size_t size)
 {
     t_zone *zone_found = NULL;
     t_block *block = NULL;
     size_t aligned_size;
 
     if (size == 0)
-        return NULL;
+        size = 1;
     
     // Align size to 8 bytes.
     aligned_size = (size + 7) & ~7;
@@ -285,6 +285,8 @@ void *ft_malloc(size_t size)
     }
     split_block(block, aligned_size);
     block->free = 0;
+    // void *user_ptr = (void*)(block + 1);
+    // VALGRIND_MALLOCLIKE_BLOCK(user_ptr, aligned_size, 0, 0);
     
     pthread_mutex_unlock(&g_mutex);
     return (void *)(block + 1);
@@ -300,13 +302,13 @@ void *ft_malloc(size_t size)
  * @param size The new size in bytes for the reallocation.
  * @return Pointer to the reallocated memory block, or NULL if allocation fails.
  */
-void *ft_realloc(void *ptr, size_t size)
+void *realloc(void *ptr, size_t size)
 {
     if (!ptr)
-        return ft_malloc(size);
+        return malloc(size);
     if (size == 0)
     {
-        ft_free(ptr);
+        free(ptr);
         return NULL;
     }
     
@@ -319,11 +321,11 @@ void *ft_realloc(void *ptr, size_t size)
         return ptr;
     }
     
-    void *new_ptr = ft_malloc(size);
+    void *new_ptr = malloc(size);
     if (!new_ptr)
         return NULL;
     size_t copy_size = (block->size < aligned_size) ? block->size : aligned_size;
     memcpy(new_ptr, ptr, copy_size);
-    ft_free(ptr);
+    free(ptr);
     return new_ptr;
 }

@@ -17,7 +17,7 @@ extern pthread_mutex_t g_mutex;
  *
  * @param ptr Pointer to the memory to be freed. If NULL, no operation is performed.
  */
-void ft_free(void *ptr)
+void free(void *ptr)
 {
     t_block *block;
     t_zone *zone;
@@ -25,6 +25,11 @@ void ft_free(void *ptr)
     if (!ptr)
         return;
     block = (t_block *)ptr - 1;
+    // /* only announce the free *once* per allocation */
+    // if (! block->free) {
+    //     VALGRIND_FREELIKE_BLOCK(ptr, 0);
+    //     block->free = 1;
+    // }
     pthread_mutex_lock(&g_mutex);
     zone = get_zone_for_ptr((void *)block);
     if (!zone)

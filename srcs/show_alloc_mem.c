@@ -6,6 +6,7 @@
 
 #define MAX_ZONES_PER_TYPE 128
 
+
 static void sort_zones(t_zone *zones[], size_t count)
 {
     size_t i, j;
@@ -21,92 +22,73 @@ static void sort_zones(t_zone *zones[], size_t count)
     }
 }
 
-/*
- * show_alloc_mem - displays the current state of allocated memory
- *
- * For each memory zone (TINY, SMALL and LARGE) the function prints:
- *
- *   [ZONE TYPE] : [Zone starting address]
- *   [block start address] - [block end address] : [block size] bytes
- *
- * Finally, the total of allocated bytes is printed.
- */
+static size_t collect_zones_by_type(enum e_zone_type type,
+                                    t_zone *out_zones[],
+                                    size_t max)
+{
+    size_t count = 0;
+    t_zone *zone = g_zones;
+
+    for (; zone && count < max; zone = zone->next) {
+        if (zone->type == type)
+            out_zones[count++] = zone;
+    }
+    return count;
+}
+
+static void print_blocks_in_zone(t_zone *zone, size_t *total)
+{
+    t_block *block = zone->blocks;
+    while (block) {
+        if (!block->free) {
+            void *start = (void *)(block + 1);
+            void *end   = (void *)((char *)start + block->size);
+            printf("%p - %p : %zu bytes\n", start, end, block->size);
+            *total += block->size;
+        }
+        block = block->next;
+    }
+}
+
+static void print_zones(const char *name,
+                        t_zone *zones[],
+                        size_t count,
+                        size_t *total)
+{
+    for (size_t i = 0; i < count; i++) {
+        printf("%s : %p\n", name, (void *)zones[i]);
+        print_blocks_in_zone(zones[i], total);
+    }
+}
+
 void show_alloc_mem(void)
 {
     printf("-------------------------------- SHOW_ALLOC_MEM -------------------------------------\n");
 
-    t_zone *zone;
     size_t total = 0;
-
-    // Temporary arrays to hold zone pointers by type.
     t_zone *tiny_zones[MAX_ZONES_PER_TYPE];
     t_zone *small_zones[MAX_ZONES_PER_TYPE];
     t_zone *large_zones[MAX_ZONES_PER_TYPE];
-    size_t tiny_count = 0, small_count = 0, large_count = 0;
 
-    // Lock the global mutex to obtain a consistent snapshot of the zones.
     pthread_mutex_lock(&g_mutex);
 
-    // First, walk the global list to group zones by type.
-    for (zone = g_zones; zone; zone = zone->next) {
-        if (zone->type == TINY && tiny_count < MAX_ZONES_PER_TYPE)
-            tiny_zones[tiny_count++] = zone;
-        else if (zone->type == SMALL && small_count < MAX_ZONES_PER_TYPE)
-            small_zones[small_count++] = zone;
-        else if (zone->type == LARGE && large_count < MAX_ZONES_PER_TYPE)
-            large_zones[large_count++] = zone;
-    }
+    size_t tiny_count  = collect_zones_by_type(TINY,  tiny_zones,  MAX_ZONES_PER_TYPE);
+    size_t small_count = collect_zones_by_type(SMALL, small_zones, MAX_ZONES_PER_TYPE);
+    size_t large_count = collect_zones_by_type(LARGE, large_zones, MAX_ZONES_PER_TYPE);
 
-    sort_zones(tiny_zones, tiny_count);
+    sort_zones(tiny_zones,  tiny_count);
     sort_zones(small_zones, small_count);
     sort_zones(large_zones, large_count);
 
-    if (tiny_count > 0) {
-        for (size_t i = 0; i < tiny_count; i++) {
-            printf("TINY : %p\n", (void *)tiny_zones[i]);
-            t_block *block = tiny_zones[i]->blocks;
-            while (block) {
-                if (!block->free) {
-                    void *block_start = (void *)(block + 1);
-                    void *block_end   = (void *)((char *)block_start + block->size);
-                    printf("%p - %p : %zu bytes\n", block_start, block_end, block->size);
-                    total += block->size;
-                }
-                block = block->next;
-            }
-        }
-    }
-
-    if (small_count > 0) {
-        for (size_t i = 0; i < small_count; i++) {
-            printf("SMALL : %p\n", (void *)small_zones[i]);
-            t_block *block = small_zones[i]->blocks;
-            while (block) {
-                if (!block->free) {
-                    void *block_start = (void *)(block + 1);
-                    void *block_end   = (void *)((char *)block_start + block->size);
-                    printf("%p - %p : %zu bytes\n", block_start, block_end, block->size);
-                    total += block->size;
-                }
-                block = block->next;
-            }
-        }
-    }
-
-    if (large_count > 0) {
-        for (size_t i = 0; i < large_count; i++) {
-            printf("LARGE : %p\n", (void *)large_zones[i]);
-            t_block *block = large_zones[i]->blocks;
-            if (block && !block->free) {
-                void *block_start = (void *)(block + 1);
-                void *block_end   = (void *)((char *)block_start + block->size);
-                printf("%p - %p : %zu bytes\n", block_start, block_end, block->size);
-                total += block->size;
-            }
-        }
-    }
+    if (tiny_count > 0)
+        print_zones("TINY",  tiny_zones,  tiny_count,  &total);
+    if (small_count > 0)
+        print_zones("SMALL", small_zones, small_count, &total);
+    if (large_count > 0)
+        print_zones("LARGE", large_zones, large_count, &total);
 
     printf("Total : %zu bytes\n", total);
     printf("\n\n\n\n");
+
     pthread_mutex_unlock(&g_mutex);
 }

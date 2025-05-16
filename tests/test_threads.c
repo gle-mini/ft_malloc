@@ -13,30 +13,30 @@ void *thread_func() {
         size_t size = (rand() % 256) + 1;
 
         if (op == 0) {
-            char *ptr = ft_malloc(size);
+            char *ptr = malloc(size);
             if (ptr) {
                 memset(ptr, 0xAA, size);
-                ft_free(ptr);
+                free(ptr);
             }
         } else if (op == 1) {
-            char *ptr = ft_malloc(size);
+            char *ptr = malloc(size);
             if (ptr) {
                 memset(ptr, 0xBB, size);
                 size_t new_size = (rand() % 256) + 1;
-                char *new_ptr = ft_realloc(ptr, new_size);
+                char *new_ptr = realloc(ptr, new_size);
                 if (new_ptr) {
                     memset(new_ptr, 0xCC, new_size);
-                    ft_free(new_ptr);
+                    free(new_ptr);
                 } else {
-                    ft_free(ptr);
+                    free(ptr);
                 }
             }
         } else {
             size_t new_size = (rand() % 256) + 1;
-            char *ptr = ft_realloc(NULL, new_size);
+            char *ptr = realloc(NULL, new_size);
             if (ptr) {
                 memset(ptr, 0xDD, new_size);
-                ft_free(ptr);
+                free(ptr);
             }
         }
     }
