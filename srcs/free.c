@@ -25,11 +25,6 @@ void free(void *ptr)
     if (!ptr)
         return;
     block = (t_block *)ptr - 1;
-    // /* only announce the free *once* per allocation */
-    // if (! block->free) {
-    //     VALGRIND_FREELIKE_BLOCK(ptr, 0);
-    //     block->free = 1;
-    // }
     pthread_mutex_lock(&g_mutex);
     zone = get_zone_for_ptr((void *)block);
     if (!zone)
@@ -37,30 +32,9 @@ void free(void *ptr)
         pthread_mutex_unlock(&g_mutex);
         return;
     }
-
     block->free = 1;
     coalesce(zone);
-
-    if (zone->type == TINY || zone->type == SMALL)
-    {
-        t_block *b = zone->blocks;
-        int all_free = 1;
-        while (b)
-        {
-            if (!b->free)
-            {
-                all_free = 0;
-                break;
-            }
-            b = b->next;
-        }
-        if (all_free)
-        {
-            remove_zone(zone);
-            munmap(zone, zone->size);
-        }
-    }
-    else if (zone->type == LARGE)
+    if (zone->type == LARGE)
     {
         remove_zone(zone);
         munmap(zone, zone->size);
