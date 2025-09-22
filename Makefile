@@ -61,7 +61,6 @@ test_threads: $(OBJ_DIR)test_threads.o $(LIBNAME)
 
 vg: test
 	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./test_free
-	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --errors-for-leak-kinds=definite
 	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./test_malloc
 	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./test_threads
 
