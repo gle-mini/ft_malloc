@@ -211,28 +211,35 @@ void test_realloc_zero(void)
 //-----------------------------------------------------------------------------
 // Test 11: show_alloc_mem Function
 //-----------------------------------------------------------------------------
-void test_show_alloc_mem(void)
-{
+ void test_show_alloc_mem(void)
+ {
     printf("Running test_show_alloc_mem...\n");
-    malloc(32);
-    malloc(64);
-    malloc(2048);
+    void *a = malloc(32);
+    void *b = malloc(64);
+    void *c = malloc(2048);
+    assert(a && b && c);
     printf("Memory state:\n");
     show_alloc_mem();
+    free(a);
+    free(b);
+    free(c);
     printf("test_show_alloc_mem passed.\n");
-}
-
-void test_show_alloc_mem_hex(void)
-{
+ }
+ 
+ void test_show_alloc_mem_hex(void)
+ {
     printf("Running test_show_alloc_mem_hex...\n");
-    malloc(32);
-    malloc(64);
-    malloc(2048);
+    void *a = malloc(32);
+    void *b = malloc(64);
+    void *c = malloc(2048);
+    assert(a && b && c);
     printf("Memory state:\n");
     show_alloc_mem_hex();
+    free(a);
+    free(b);
+    free(c);
     printf("test_show_alloc_mem_hex passed.\n");
-}
-
+ }
 
 //-----------------------------------------------------------------------------
 // Main: Run All Tests
