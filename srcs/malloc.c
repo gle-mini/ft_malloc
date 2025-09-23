@@ -264,7 +264,7 @@ void *malloc(size_t size)
     }
     else
     {
-        size_t total_size = BLOCK_SIZE + aligned_size;
+        size_t total_size = sizeof(t_zone) + BLOCK_SIZE + aligned_size;
         t_zone *zone = mmap(NULL, total_size, PROT_READ | PROT_WRITE,
                             MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         if (zone == MAP_FAILED) {
